@@ -112,7 +112,7 @@ Master data for laundry services.
 | id | BIGINT |
 | name | VARCHAR(150) |
 | price | DECIMAL(12,2) |
-| estimated_days | INT |
+| estimated_hours | INT |
 | description | TEXT |
 | is_active | BOOLEAN |
 | created_at | TIMESTAMP |
