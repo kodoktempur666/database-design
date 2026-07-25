@@ -2,672 +2,676 @@
 
 ## Overview
 
-Database ini dirancang untuk aplikasi Laundry POS yang mendukung:
+This database is designed for a Laundry POS application with support for:
 
-- Multi Cabang
-- Multi Kasir
-- Membership dengan Saldo
-- Tier Membership
-- Masa Berlaku Membership
-- Promo / Voucher
-- Pembelian Membership
-- Tracking Status Laundry
-- Dashboard Pendapatan
-- Audit Transaksi
+- Multi Branch
+- Multi Cashier
+- Membership Balance
+- Membership Tier
+- Membership Expiration
+- Promotion / Voucher
+- Membership Purchase
+- Laundry Order Tracking
+- Revenue Dashboard
+- Transaction Audit
 
 ---
 
 # Entity Relationship Diagram (Concept)
 
-```
-Admin
+```text
+Admins
 
-Cabang
+Branches
 │
-├── Kasir
+├── Cashiers
 │
-├── Order
-│     ├── Layanan
-│     ├── Membership
-│     ├── Promo
+├── Orders
+│     ├── Services
+│     ├── Memberships
+│     ├── Promotions
 │     └── Order Logs
 │
-└── Membership Transaction
+└── Membership Transactions
 
-Membership
+Memberships
 │
-├── Tier
-├── Order
-└── Membership Transaction
+├── Membership Tiers
+├── Orders
+└── Membership Transactions
 ```
 
 ---
 
-# 1. Admin
+# 1. Admins
 
-Digunakan untuk login Super Admin.
+Used for Super Admin authentication.
 
-| Field | Type | Keterangan |
-|---------|------|------------|
-| id | BIGINT | PK |
-| username | VARCHAR(100) | UNIQUE |
-| password | VARCHAR(255) | Password Hash |
-| created_at | TIMESTAMP | |
-| updated_at | TIMESTAMP | |
+| Column | Type | Description |
+|---------|------|-------------|
+| id | BIGINT | Primary Key |
+| username | VARCHAR(100) | Unique username |
+| password | VARCHAR(255) | Password hash |
+| created_at | TIMESTAMP | Created timestamp |
+| updated_at | TIMESTAMP | Updated timestamp |
 
 ---
 
-# 2. Cabang
+# 2. Branches
 
-Master data cabang laundry.
+Stores all laundry branch information.
 
-| Field | Type |
+| Column | Type |
 |---------|------|
 | id | BIGINT |
-| nama | VARCHAR(150) |
-| alamat | TEXT |
-| no_hp | VARCHAR(20) |
+| name | VARCHAR(150) |
+| address | TEXT |
+| phone_number | VARCHAR(20) |
 | created_at | TIMESTAMP |
 | updated_at | TIMESTAMP |
 
-## Catatan
+## Notes
 
-Tidak perlu menyimpan kolom:
+Do **not** store revenue in this table.
 
-- pendapatan
-
-Pendapatan dihitung langsung dari transaksi order.
+Revenue should always be calculated from completed orders.
 
 ---
 
-# 3. Kasir
+# 3. Cashiers
 
-Setiap kasir hanya berada pada satu cabang.
+Each cashier belongs to one branch.
 
-| Field | Type |
+| Column | Type |
 |---------|------|
 | id | BIGINT |
-| id_cabang | FK |
-| nama | VARCHAR(150) |
+| branch_id | FK → branches.id |
+| name | VARCHAR(150) |
 | username | VARCHAR(100) |
 | password | VARCHAR(255) |
-| login_status | BOOLEAN |
-| last_login | TIMESTAMP |
+| is_logged_in | BOOLEAN |
+| last_login_at | TIMESTAMP |
 | created_at | TIMESTAMP |
 | updated_at | TIMESTAMP |
 
-Relasi
+Relationship
 
-```
-Cabang
-1 ---- n Kasir
+```text
+Branch
+1 ----- n Cashiers
 ```
 
 ---
 
-# 4. Layanan
+# 4. Services
 
-Master layanan laundry.
+Master data for laundry services.
 
-| Field | Type |
+| Column | Type |
 |---------|------|
 | id | BIGINT |
-| nama | VARCHAR(150) |
-| harga | DECIMAL(12,2) |
-| estimasi_hari | INT |
-| deskripsi | TEXT |
+| name | VARCHAR(150) |
+| price | DECIMAL(12,2) |
+| estimated_days | INT |
+| description | TEXT |
 | is_active | BOOLEAN |
 | created_at | TIMESTAMP |
 | updated_at | TIMESTAMP |
 
-Contoh
+Example
 
-| Nama | Harga |
-|------|-------:|
-| Reguler | 7000/kg |
-| Express | 12000/kg |
-| Setrika | 5000/kg |
+| Service | Price |
+|----------|------:|
+| Regular Laundry | 7000/kg |
+| Express Laundry | 12000/kg |
+| Ironing | 5000/kg |
 
 ---
 
-# 5. Tier Membership
+# 5. Membership Tiers
 
-Tier merupakan paket membership yang dijual.
+Represents membership packages sold by the cashier.
 
-Kasir **tidak dapat mengisi saldo secara manual**, melainkan hanya memilih paket Tier.
+The cashier **cannot manually enter balance values**.
 
-| Field | Type |
+The cashier only selects a membership package.
+
+| Column | Type |
 |---------|------|
 | id | BIGINT |
-| nama | VARCHAR(100) |
-| harga | DECIMAL(12,2) |
-| saldo_didapat | DECIMAL(12,2) |
-| masa_berlaku_hari | INT |
-| keterangan | TEXT |
+| name | VARCHAR(100) |
+| purchase_price | DECIMAL(12,2) |
+| balance_amount | DECIMAL(12,2) |
+| validity_days | INT |
+| description | TEXT |
 | created_at | TIMESTAMP |
 | updated_at | TIMESTAMP |
 
-Contoh
+Example
 
-| Tier | Harga | Saldo Masuk | Masa Berlaku |
-|------|-------:|------------:|-------------:|
-| Silver | 50000 | 55000 | 30 Hari |
-| Gold | 100000 | 120000 | 90 Hari |
-| Platinum | 100000 | 150000 | 180 Hari |
+| Tier | Purchase Price | Balance Added | Validity |
+|------|---------------:|--------------:|----------:|
+| Silver | 50000 | 55000 | 30 Days |
+| Gold | 100000 | 120000 | 90 Days |
+| Platinum | 100000 | 150000 | 180 Days |
 
 ---
 
-# 6. Membership
+# 6. Memberships
 
-Data pelanggan yang memiliki membership.
+Stores member information.
 
-| Field | Type |
+| Column | Type |
 |---------|------|
 | id | BIGINT |
-| id_tier | FK |
-| nama | VARCHAR(150) |
-| no_hp | VARCHAR(20) UNIQUE|
-| alamat | TEXT |
-| saldo | DECIMAL(12,2) |
-| berlaku_sampai | DATE |
+| tier_id | FK → membership_tiers.id |
+| customer_name | VARCHAR(150) |
+| phone_number | VARCHAR(20) UNIQUE |
+| address | TEXT |
+| balance | DECIMAL(12,2) |
+| expires_at | DATE |
 | status | ENUM('ACTIVE','EXPIRED','BLOCKED') |
 | created_at | TIMESTAMP |
 | updated_at | TIMESTAMP |
 
-## Aturan
+## Business Rules
 
-Membership hanya memiliki satu Tier aktif.
+Each membership only has one active tier.
 
-Jika customer membeli Tier baru:
+When a customer purchases another membership package:
 
-- id_tier diperbarui
-- saldo bertambah sesuai saldo_didapat
-- masa berlaku diperbarui
-- transaksi dicatat pada Membership Transaction
+- Update `tier_id`
+- Add balance based on the selected tier
+- Extend membership validity
+- Save transaction history in `membership_transactions`
 
 ---
 
-# 7. Membership Transaction
+# 7. Membership Transactions
 
-Riwayat pembelian membership.
+Stores all membership purchase history.
 
-Setiap pembelian Tier akan menghasilkan satu record.
+Each membership purchase creates one record.
 
-| Field | Type |
+| Column | Type |
 |---------|------|
 | id | BIGINT |
-| id_membership | FK |
-| id_cabang | FK |
-| id_kasir | FK |
-| id_tier_lama | FK NULL |
-| id_tier_baru | FK |
-| harga | DECIMAL(12,2) |
-| saldo_masuk | DECIMAL(12,2) |
-| berlaku_sebelum | DATE |
-| berlaku_setelah | DATE |
-| metode_bayar | ENUM('Cash','Transfer','QRIS') |
+| membership_id | FK → memberships.id |
+| branch_id | FK → branches.id |
+| cashier_id | FK → cashiers.id |
+| previous_tier_id | FK → membership_tiers.id (Nullable) |
+| current_tier_id | FK → membership_tiers.id |
+| purchase_price | DECIMAL(12,2) |
+| balance_added | DECIMAL(12,2) |
+| previous_expiry_date | DATE |
+| new_expiry_date | DATE |
+| payment_method | ENUM('CASH','TRANSFER','QRIS') |
 | created_at | TIMESTAMP |
 
 ---
 
-## Contoh
+## Example
 
-Customer
+Current Membership
 
-```
-Tier
-
-Gold
-
-Saldo
-
-20000
-
-Expired
-
-2026-08-20
+```text
+Tier        : Gold
+Balance     : 20000
+Expires At  : 2026-08-20
 ```
 
-Membeli
+Customer purchases
 
-```
+```text
 Platinum
 ```
 
-Maka sistem otomatis
+System automatically updates
 
-```
+```text
 Tier
 
 Gold
-
 ↓
 
 Platinum
 
-Saldo
+Balance
 
 20000
-
 +
-
 150000
-
 =
-
 170000
 
-Expired
+Expiration
 
 2026-08-20
-
 ↓
 
 2027-02-16
 ```
 
-Kasir tidak memasukkan nominal saldo secara manual.
-
 ---
 
-# 8. Promo
+# 8. Promotions
 
-Master promo.
+Stores promotional campaigns.
 
-| Field | Type |
+| Column | Type |
 |---------|------|
 | id | BIGINT |
-| kode | VARCHAR(50) UNIQUE |
-| nama | VARCHAR(150) |
-| tipe_diskon | ENUM('PERCENT','NOMINAL') |
-| nilai_diskon | DECIMAL(12,2) |
-| minimal_transaksi | DECIMAL(12,2) |
-| maksimal_diskon | DECIMAL(12,2) |
-| tanggal_mulai | DATE |
-| tanggal_selesai | DATE |
+| code | VARCHAR(50) UNIQUE |
+| name | VARCHAR(150) |
+| discount_type | ENUM('PERCENTAGE','FIXED_AMOUNT') |
+| discount_value | DECIMAL(12,2) |
+| minimum_purchase | DECIMAL(12,2) |
+| maximum_discount | DECIMAL(12,2) |
+| start_date | DATE |
+| end_date | DATE |
 | is_active | BOOLEAN |
 | created_at | TIMESTAMP |
 | updated_at | TIMESTAMP |
 
-Contoh
+Example
 
-| Promo | Diskon |
-|--------|--------|
+| Promotion | Discount |
+|-----------|----------|
 | NEW10 | 10% |
-| HEMAT20 | Rp20.000 |
+| SAVE20 | 20000 |
 | MEMBER5 | 5% |
 
 ---
 
-# 9. Order
+# 9. Orders
 
-Data transaksi laundry.
+Stores laundry transactions.
 
-| Field | Type |
+| Column | Type |
 |---------|------|
 | id | BIGINT |
-| kode_invoice | VARCHAR(100) UNIQUE |
-| id_cabang | FK |
-| id_kasir | FK |
-| id_layanan | FK |
-| id_membership | FK NULL |
-| id_promo | FK NULL |
-| nama_customer | VARCHAR(150) |
-| no_hp | VARCHAR(20) |
-| alamat | TEXT |
-| berat | DECIMAL(8,2) |
-| harga_per_kg | DECIMAL(12,2) |
+| invoice_number | VARCHAR(100) UNIQUE |
+| branch_id | FK → branches.id |
+| cashier_id | FK → cashiers.id |
+| membership_id | FK → memberships.id (Nullable) |
+| promotion_id | FK → promotions.id (Nullable) |
+| customer_name | VARCHAR(150) |
+| phone_number | VARCHAR(20) |
+| address | TEXT |
+| payment_method | ENUM('CASH','TRANSFER','QRIS','MEMBERSHIP') |
 | subtotal | DECIMAL(12,2) |
-| diskon | DECIMAL(12,2) |
-| total | DECIMAL(12,2) |
-| metode_bayar | ENUM('Cash','Transfer','QRIS','Membership') |
-| status | ENUM('Waiting','Processing','Washing','Drying','Ironing','Ready Pickup','Completed','Cancelled') |
+| discount_amount | DECIMAL(12,2) |
+| total_amount | DECIMAL(12,2) |
+| status | ENUM('WAITING','PROCESSING','WASHING','DRYING','IRONING','READY_FOR_PICKUP','COMPLETED','CANCELLED') |
 | created_at | TIMESTAMP |
 | updated_at | TIMESTAMP |
-| selesai_at | TIMESTAMP NULL |
-
-## Kenapa menyimpan harga_per_kg?
-
-Karena harga layanan dapat berubah sewaktu-waktu.
-
-History transaksi tetap valid.
+| completed_at | TIMESTAMP NULL |
 
 ---
 
-# 10. Order Logs
+# 10. Order Items
 
-Mencatat seluruh perubahan status laundry.
+Stores services included in an order.
 
-| Field | Type |
+This design allows one order to contain multiple laundry services.
+
+| Column | Type |
 |---------|------|
 | id | BIGINT |
-| id_order | FK |
-| status | ENUM |
-| keterangan | TEXT |
-| changed_by | FK Kasir |
+| order_id | FK → orders.id |
+| service_id | FK → services.id |
+| quantity | DECIMAL(8,2) |
+| unit_price | DECIMAL(12,2) |
+| subtotal | DECIMAL(12,2) |
 | created_at | TIMESTAMP |
 
-Contoh
+Example
 
-```
-Waiting
+| Service | Quantity | Unit Price |
+|----------|---------:|-----------:|
+| Regular Laundry | 5 kg | 7000 |
+| Ironing | 5 kg | 5000 |
+
+---
+
+# 11. Order Logs
+
+Tracks every status change.
+
+| Column | Type |
+|---------|------|
+| id | BIGINT |
+| order_id | FK → orders.id |
+| status | ENUM |
+| notes | TEXT |
+| updated_by | FK → cashiers.id |
+| created_at | TIMESTAMP |
+
+Example
+
+```text
+WAITING
 
 ↓
 
-Processing
+PROCESSING
 
 ↓
 
-Washing
+WASHING
 
 ↓
 
-Drying
+DRYING
 
 ↓
 
-Ironing
+IRONING
 
 ↓
 
-Ready Pickup
+READY_FOR_PICKUP
 
 ↓
 
-Completed
+COMPLETED
 ```
 
 ---
 
-# Relasi Database
+# Relationships
 
-```
-Cabang
+```text
+Branches
 
-1 ---- n Kasir
-
-1 ---- n Order
-
-1 ---- n MembershipTransaction
+1 ----- n Cashiers
+1 ----- n Orders
+1 ----- n Membership Transactions
 ```
 
-```
-Kasir
+```text
+Cashiers
 
-1 ---- n Order
-
-1 ---- n MembershipTransaction
-
-1 ---- n OrderLogs
+1 ----- n Orders
+1 ----- n Membership Transactions
+1 ----- n Order Logs
 ```
 
-```
-Tier
+```text
+Membership Tiers
 
-1 ---- n Membership
-
-1 ---- n MembershipTransaction
-```
-
-```
-Membership
-
-1 ---- n Order
-
-1 ---- n MembershipTransaction
+1 ----- n Memberships
+1 ----- n Membership Transactions
 ```
 
-```
-Promo
+```text
+Memberships
 
-1 ---- n Order
-```
-
-```
-Layanan
-
-1 ---- n Order
+1 ----- n Orders
+1 ----- n Membership Transactions
 ```
 
-```
-Order
+```text
+Promotions
 
-1 ---- n OrderLogs
+1 ----- n Orders
+```
+
+```text
+Orders
+
+1 ----- n Order Items
+1 ----- n Order Logs
+```
+
+```text
+Services
+
+1 ----- n Order Items
 ```
 
 ---
 
-# Flow Pembelian Membership
+# Membership Purchase Flow
 
-```
-Kasir
-
-↓
-
-Cari Membership
+```text
+Cashier
 
 ↓
 
-Pilih Tier
+Find Membership
 
 ↓
 
-Customer Bayar
+Select Membership Tier
 
 ↓
 
-Sistem mengambil data Tier
+Customer Pays
 
 ↓
 
-Saldo Membership += saldo_didapat
+System Loads Tier Information
 
 ↓
 
-Tier Membership diganti
+Update Membership Balance
 
 ↓
 
-Perpanjang masa berlaku
+Update Membership Tier
 
 ↓
 
-Simpan Membership Transaction
+Extend Expiration Date
 
 ↓
 
-Selesai
-```
-
-Kasir **tidak dapat memasukkan nominal saldo secara manual.**
-
----
-
-# Flow Order Laundry
-
-```
-Kasir
+Create Membership Transaction
 
 ↓
 
-Pilih Customer
-
-↓
-
-Pilih Layanan
-
-↓
-
-Input Berat
-
-↓
-
-Pilih Promo (Opsional)
-
-↓
-
-Pilih Membership (Opsional)
-
-↓
-
-Hitung Total
-
-↓
-
-Pilih Metode Bayar
-
-↓
-
-Simpan Order
-
-↓
-
-Cetak Invoice
+Done
 ```
 
 ---
 
-# Dashboard Admin
+# Laundry Order Flow
 
-## Pendapatan Hari Ini
+```text
+Cashier
 
-```
-SUM(order.total)
-WHERE status='Completed'
+↓
+
+Select Customer
+
+↓
+
+Create Order
+
+↓
+
+Add One or More Services
+
+↓
+
+Apply Promotion (Optional)
+
+↓
+
+Use Membership Balance (Optional)
+
+↓
+
+Calculate Total
+
+↓
+
+Select Payment Method
+
+↓
+
+Save Order
+
+↓
+
+Print Receipt
 ```
 
 ---
 
-## Pendapatan Bulanan
+# Dashboard
 
+## Daily Revenue
+
+```sql
+SUM(total_amount)
+WHERE status = 'COMPLETED'
 ```
-SUM(order.total)
+
+---
+
+## Monthly Revenue
+
+```sql
+SUM(total_amount)
 GROUP BY YEAR(created_at), MONTH(created_at)
 ```
 
 ---
 
-## Pendapatan per Cabang
+## Revenue by Branch
 
-```
-SUM(order.total)
-GROUP BY id_cabang
-```
-
----
-
-## Pendapatan per Kasir
-
-```
-SUM(order.total)
-GROUP BY id_kasir
+```sql
+SUM(total_amount)
+GROUP BY branch_id
 ```
 
 ---
 
-## Total Order
+## Revenue by Cashier
 
-```
-COUNT(order.id)
-```
-
----
-
-## Total Member
-
-```
-COUNT(membership.id)
+```sql
+SUM(total_amount)
+GROUP BY cashier_id
 ```
 
 ---
 
-## Membership Aktif
+## Total Orders
 
-```
-COUNT(status='ACTIVE')
-```
-
----
-
-## Membership Expired
-
-```
-COUNT(status='EXPIRED')
+```sql
+COUNT(id)
 ```
 
 ---
 
-## Pendapatan Penjualan Membership
+## Total Members
 
-```
-SUM(membership_transaction.harga)
-```
-
----
-
-## Tier Terlaris
-
-```
-COUNT(id_tier_baru)
-GROUP BY id_tier_baru
+```sql
+COUNT(id)
+FROM memberships
 ```
 
 ---
 
-## Promo Terbanyak Digunakan
+## Active Memberships
 
-```
-COUNT(id_promo)
-GROUP BY id_promo
+```sql
+COUNT(*)
+WHERE status='ACTIVE'
 ```
 
 ---
 
-# Index yang Disarankan
+## Expired Memberships
 
-## Order
+```sql
+COUNT(*)
+WHERE status='EXPIRED'
+```
 
-- id_cabang
-- id_kasir
-- id_membership
-- id_promo
-- created_at
+---
+
+## Membership Sales
+
+```sql
+SUM(purchase_price)
+FROM membership_transactions
+```
+
+---
+
+## Best Selling Membership Tier
+
+```sql
+COUNT(current_tier_id)
+GROUP BY current_tier_id
+```
+
+---
+
+## Most Used Promotion
+
+```sql
+COUNT(promotion_id)
+GROUP BY promotion_id
+```
+
+---
+
+# Recommended Indexes
+
+## Orders
+
+- invoice_number
+- branch_id
+- cashier_id
+- membership_id
+- promotion_id
 - status
-
-## Membership
-
-- kode_member
-- no_hp
-- berlaku_sampai
-
-## Membership Transaction
-
-- id_membership
-- id_tier_baru
 - created_at
 
-## Promo
+## Order Items
 
-- kode
+- order_id
+- service_id
+
+## Memberships
+
+- phone_number
+- tier_id
+- expires_at
+
+## Membership Transactions
+
+- membership_id
+- current_tier_id
+- created_at
+
+## Promotions
+
+- code
+- is_active
 
 ## Order Logs
 
-- id_order
+- order_id
 - created_at
 
 ---
 
-# Kelebihan Desain
+# Advantages
 
-- ✅ Fully Normalized (3NF)
-- ✅ Multi Cabang
-- ✅ Multi Kasir
-- ✅ Membership dengan masa berlaku
-- ✅ Saldo Membership otomatis sesuai Tier
-- ✅ Riwayat perubahan Tier (upgrade/downgrade)
-- ✅ Promo dan voucher
-- ✅ Tracking status laundry
-- ✅ Harga transaksi historis tetap valid
-- ✅ Dashboard pendapatan lengkap
-- ✅ Mudah dikembangkan untuk fitur paket laundry, refund, poin loyalitas, QRIS, dan analitik
-- ✅ Audit transaksi yang lengkap melalui `Membership Transaction` dan `Order Logs`
+- ✅ Third Normal Form (3NF)
+- ✅ Multi-Branch Support
+- ✅ Multi-Cashier Support
+- ✅ Membership Balance Management
+- ✅ Membership Expiration
+- ✅ Membership Upgrade/Downgrade History
+- ✅ Flexible Promotions
+- ✅ Multiple Services per Order
+- ✅ Historical Pricing
+- ✅ Complete Revenue Dashboard
+- ✅ Full Transaction Audit
+- ✅ Easily extensible for refunds, loyalty points, delivery services, and advanced reporting
